@@ -10,7 +10,7 @@ Zero-trust security for machine identities (API keys, IAM roles, service account
 - Real-time observability
 
 ## Demo
-Live dashboard: [streamlit.app/your-link](https://streamlit.app)
+Live dashboard: (https://aegisid.streamlit.app/)
 
 ## Workflow Structure
 See `workflow.json` for full Opus workflow.
