@@ -1,141 +1,230 @@
 import streamlit as st
-import requests
 import json
-from datetime import datetime
+import requests
+import base64
+import pandas as pd
+import plotly.express as px
 
 # ----------------------------
-# CONFIGURATION
-# ----------------------------
-OPUS_API_KEY = st.secrets["OPUS_API_KEY"]
-WORKFLOW_ID = st.secrets["WORKFLOW_ID"]
-
-HEADERS = {
-    "Authorization": f"Bearer {OPUS_API_KEY}",
-    "Content-Type": "application/json"
-}
-
-# ----------------------------
-# PAGE SETTINGS
+# Page Config
 # ----------------------------
 st.set_page_config(
-    page_title="AegisID Dashboard",
-    layout="wide",
-    page_icon="🔐"
+    page_title="AegisID — API Key Risk Analyzer",
+    page_icon="🛡",
+    layout="wide"
 )
 
-st.title("🔐 AegisID — Identity Risk Analysis System")
-st.subheader("AI-powered detection of risky API Keys & IAM Roles\n")
-
-
 # ----------------------------
-# SECTION: Workflow Overview
+# Custom CSS (Enterprise UI)
 # ----------------------------
-st.markdown("### 📘 What This Workflow Does")
+st.markdown("""
+<style>
 
-st.info("""
-AegisID analyzes API Keys and IAM Roles to detect potential security risks.
-Your Opus workflow performs these steps:
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
 
-1️⃣ **Parse API Keys**  
-2️⃣ **AI Risk Scoring (Custom Agent)**  
-3️⃣ **Parse Scored Identities**  
-4️⃣ **Split High/Low Risk**  
-5️⃣ **Generate Audit File**  
-6️⃣ **Return final audit JSON**
+/* Title */
+.big-title {
+    font-size: 40px !important;
+    font-weight: 800 !important;
+    padding-bottom: 5px;
+}
 
-This dashboard lets you **trigger the workflow and view results live**.
-""")
+/* Section Title */
+.section-title {
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
 
+/* Cards */
+.card {
+    padding: 20px;
+    border-radius: 12px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    margin-bottom: 15px;
+}
 
-# ----------------------------
-# INPUT SECTION
-# ----------------------------
-st.markdown("### 📥 Upload API Keys JSON")
+.good { border-left: 6px solid #10b981 !important; }
+.warn { border-left: 6px solid #f59e0b !important; }
+.bad {  border-left: 6px solid #ef4444 !important; }
 
-api_file = st.file_uploader("Upload API Keys JSON file", type=["json"])
+.step {
+    font-size: 16px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 5px;
+    background: #111827;
+    border: 1px solid #1f2937;
+}
 
-st.markdown("### 🔗 IAM Roles API Endpoint")
+.step-active {
+    background: #2563eb !important;
+    border-color: #1d4ed8 !important;
+    color: white !important;
+}
 
-iam_endpoint = st.text_input(
-    "Enter IAM Roles API URL",
-    placeholder="https://example.com/iam_roles"
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------------
+# Sidebar Navigation
+# -----------------------------------
+st.sidebar.title("🔎 Navigation")
+page = st.sidebar.radio(
+    "",
+    ["🏠 Home", "📤 Upload", "📊 Results", "📁 Audit File"]
 )
 
-if st.button("▶️ Run AegisID Workflow", use_container_width=True):
+st.sidebar.markdown("---")
+st.sidebar.caption("AegisID™ — Secure • Intelligent • Automated")
 
-    if api_file is None:
-        st.error("Please upload your API keys JSON file.")
-        st.stop()
+# -----------------------------------
+# Home Page
+# -----------------------------------
+if page == "🏠 Home":
+    st.markdown("<div class='big-title'>🛡 AegisID — API Key Risk Analysis System</div>", unsafe_allow_html=True)
+    st.subheader("Enterprise-grade detection of risky API Keys")
 
-    if iam_endpoint.strip() == "":
-        st.error("Please enter a valid IAM Roles API endpoint.")
-        st.stop()
+    st.markdown("""
+    AegisID analyzes **API Keys** to detect potential security risks, abnormal usage,
+    exposure patterns, and missing safeguards like IP restrictions.
 
-    with st.spinner("Running Opus Workflow... Please wait ⏳"):
-        
-        # Read uploaded API keys JSON
-        api_json = json.load(api_file)
+    ### 🔍 What This Workflow Does  
+    """)
 
-        # Build workflow input payload
-        payload = {
-            "inputs": {
-                "api_keys_json_file": api_json,
-                "iam_roles_api_endpoint": [iam_endpoint]   # Opus expects a list
-            }
-        }
+    with st.expander("📘 Workflow Explanation (Click to expand)"):
+        st.markdown("""
+        The workflow runs through the following steps:
 
-        # Call Opus workflow
-        url = f"https://api.opus.ai/workflows/{WORKFLOW_ID}/run"
-        response = requests.post(url, headers=HEADERS, json=payload)
+        1️⃣ **Parse API Keys JSON**  
+        2️⃣ **Risk Scoring using LLM**  
+        3️⃣ **Parse & clean the LLM output**  
+        4️⃣ **Split High/Low Risk keys**  
+        5️⃣ **Generate Audit JSON**  
+        6️⃣ **Return final risk results**
 
-        if response.status_code != 200:
-            st.error("Workflow failed ❌")
-            st.json(response.json())
-            st.stop()
+        This dashboard provides a clean user-friendly interface to run that workflow and analyze results.
+        """)
 
-        result = response.json()
+    st.markdown("### 🚦 System Overview")
+    col1, col2, col3 = st.columns(3)
 
-    st.success("Workflow completed successfully! 🎉")
+    col1.metric("Analysis Speed", "Fast", "+ Real-time")
+    col2.metric("Supported Keys", "Unlimited", "Batch mode")
+    col3.metric("Security Level", "High", "LLM-driven")
 
-    # ----------------------------
-    # OUTPUT SECTION
-    # ----------------------------
-    st.markdown("## 📊 AegisID Results")
+# -----------------------------------
+# Upload Page
+# -----------------------------------
+elif page == "📤 Upload":
+    st.markdown("<div class='section-title'>📤 Upload API Keys JSON</div>", unsafe_allow_html=True)
+    api_file = st.file_uploader("Upload your API Keys file", type=["json"])
 
-    # Extract outputs
-    outputs = result.get("outputs", {})
+    if api_file:
+        st.success("API Keys file successfully uploaded. Ready to analyze.")
 
-    # High & Low Risk results
-    high_risk = outputs.get("high_risk", [])
-    low_risk = outputs.get("low_risk", [])
-    audit_json = outputs.get("audit_json", "")
+    run = st.button("⚡ Run AegisID Workflow")
 
-    # Show high risk
-    with st.expander("🔥 High Risk Identities", expanded=True):
-        if high_risk:
-            st.json(high_risk)
+    if run:
+        if not api_file:
+            st.error("Please upload a file first.")
         else:
-            st.info("No high-risk identities detected")
+            st.info("Running workflow... please wait.")
 
-    # Show low risk
-    with st.expander("🟢 Low Risk Identities"):
-        st.json(low_risk)
+            OPUS_KEY = st.secrets["OPUS_API_KEY"]
+            WORKFLOW_ID = st.secrets["WORKFLOW_ID"]
 
-    # Show audit file
-    with st.expander("📁 Audit JSON File"):
-        st.code(audit_json, language="json")
+            api_keys_json = json.loads(api_file.read())
+            payload = {"api_keys_json_file": api_keys_json}
 
-    # Download audit file
-    st.download_button(
-        "⬇️ Download Audit JSON",
-        data=audit_json,
-        file_name=f"aegisid_audit_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-        mime="application/json"
-    )
+            headers = {"Authorization": f"Bearer {OPUS_KEY}", "Content-Type": "application/json"}
+            url = f"https://workflow.opus.ai/api/workflows/{WORKFLOW_ID}/run"
 
+            response = requests.post(url, headers=headers, json={"inputs": payload})
 
-# ----------------------------
-# FOOTER
-# ----------------------------
-st.markdown("---")
-st.caption("Built using Opus + Streamlit · AegisID Security System")
+            if response.status_code != 200:
+                st.error(f"Workflow error: {response.text}")
+            else:
+                st.success("Workflow completed successfully!")
+                st.session_state.run_output = response.json()
+
+# -----------------------------------
+# Results Page
+# -----------------------------------
+elif page == "📊 Results":
+    st.markdown("<div class='section-title'>📊 API Key Risk Results</div>", unsafe_allow_html=True)
+
+    if "run_output" not in st.session_state:
+        st.warning("⚠ Please run the workflow first (Upload page).")
+        st.stop()
+
+    results = st.session_state.run_output["outputs"]["audit_json"]
+    parsed = json.loads(results)
+
+    # Build DataFrame for charts
+    df = pd.DataFrame(parsed)
+
+    # ----------------.- Risk Distribution Chart ----------------
+    st.markdown("### 📈 Risk Score Distribution")
+    fig = px.histogram(df, x="risk_score", nbins=10, title="Risk Score Histogram", color_discrete_sequence=["#3b82f6"])
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ----------------.- Individual Results ----------------
+    for item in parsed:
+        risk = item["risk_score"]
+        key_id = item["identity_id"]
+        decision = item["decision"]
+
+        css = "good" if risk < 30 else "warn" if risk < 60 else "bad"
+
+        st.markdown(f"<div class='card {css}'>", unsafe_allow_html=True)
+        st.markdown(f"### 🔑 `{key_id}`")
+        st.write(f"**Risk Score:** {risk}")
+        st.write(f"**Decision:** {decision}")
+        st.write(f"**Usage Count:** {item['usage_count']}")
+        st.write(f"**IP Restriction:** {item.get('ip_restriction')}")
+
+        st.markdown("### 🛡 Security Recommendations")
+
+        if risk >= 60:
+            st.error("🚨 Immediate Rotation Required")
+            st.markdown("""
+            - This key is likely exposed or unsafe.
+            - High volume usage without IP restrictions is dangerous.
+            - Keys with names like *live* or *prod* attract attackers.
+            - Rotate immediately and enable IP restriction.
+            """)
+        elif risk >= 30:
+            st.warning("⚠ Key Should Be Reviewed")
+            st.markdown("""
+            - Monitor usage trends.
+            - Add IP restriction.
+            - Validate service integrations.
+            """)
+        else:
+            st.success("🟢 Low Risk — No immediate vulnerabilities detected")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# -----------------------------------
+# Audit JSON Page
+# -----------------------------------
+elif page == "📁 Audit File":
+    st.markdown("<div class='section-title'>📁 Download Audit File</div>", unsafe_allow_html=True)
+
+    if "run_output" not in st.session_state:
+        st.warning("⚠ Run workflow first.")
+    else:
+        results = st.session_state.run_output["outputs"]["audit_json"]
+        b64 = base64.b64encode(results.encode()).decode()
+
+        st.download_button(
+            "📥 Download Full Audit JSON",
+            data=b64,
+            file_name="aegisid_audit.json",
+            mime="application/json"
+        )
