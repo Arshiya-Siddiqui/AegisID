@@ -22,11 +22,8 @@ if 'model_choice' not in st.session_state:
 # Load API keys from Streamlit secrets
 try:
     AI_ML_API_KEY = st.secrets["AI_ML_API_KEY"]
-    st.sidebar.success("✅ AI/ML API Key loaded")
 except:
     AI_ML_API_KEY = ""
-    st.sidebar.error("❌ AI_ML_API_KEY missing in Secrets")
-    st.sidebar.info("Add to Secrets: AI_ML_API_KEY = 'your-key-here'")
 
 try:
     OPUS_API_KEY = st.secrets.get("OPUS_API_KEY", "")
@@ -154,28 +151,17 @@ st.markdown(f"""
 st.sidebar.markdown("# AegisID Control Panel")
 st.sidebar.markdown("---")
 
-# API Key status
-if AI_ML_API_KEY:
-    st.sidebar.success("✅ AI/ML API Key Active")
-else:
-    st.sidebar.error("❌ AI_ML_API_KEY missing")
-    st.sidebar.info("Add to Secrets: AI_ML_API_KEY = 'your-key-here'")
-
-# JUDGE DIRECT WORKFLOW LINK (NEW FEATURE)
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Judge Verification")
-
-# Build workflow URL
+# JUDGE DIRECT WORKFLOW LINK (FEATURE)
+st.sidebar.markdown("### 👨‍⚖️ Judge Verification")
 workflow_url = f"https://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
 
 if workflow_url:
-    # ONE-CLICK REDIRECT BUTTON
     st.sidebar.link_button(
-        "🔗 Open Opus Workflow", 
+        "Open Opus Workflow Canvas", 
         workflow_url,
         type="primary",
         use_container_width=True,
-        help="Click to open the actual Opus workflow in a new tab for verification"
+        help="Opens the actual Opus workflow in a new tab for verification"
     )
     st.sidebar.caption(f"**Workflow ID:** `{WORKFLOW_ID}`")
 else:
@@ -188,15 +174,23 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔎 Navigation")
 page = st.sidebar.radio("", ["🏠 Home", "📤 Upload & Analyze", "📊 Risk Intelligence", "📁 Audit Trail"], label_visibility="collapsed")
 
+# API Key Status (MOVED TO BOTTOM)
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔐 API Status")
+if AI_ML_API_KEY:
+    st.sidebar.success("✅ AI/ML API Key Active")
+else:
+    st.sidebar.error("❌ AI_ML_API_KEY missing")
+    st.sidebar.info("Add to Secrets: AI_ML_API_KEY = 'your-key-here'")
+
 # ============= HOME PAGE =============
 if page == "🏠 Home":
-    st.markdown(f"<h1 style='color:{colors['accent']}; font-size: 42px; font-weight: 800;'>AegisID Enterprise</h1>", unsafe_allow_html=True)
+    # CHANGED TITLE: Less bold, removed "Enterprise"
+    st.markdown(f"<h1 style='color:{colors['accent']}; font-size: 36px; font-weight: 600;'>AegisID</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:{colors['muted']}; font-size: 18px;'>Zero-Trust Machine Identity Security Platform</p>", unsafe_allow_html=True)
     
-    # Demo data disclaimer - clearly marked
     st.info("📊 **DEMO MODE** - Stats below are illustrative. Upload real data to see actual results.")
     
-    # Stats cards (illustrative data for judges to see UI)
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Scans", "1,247", "+23%")
     col2.metric("High Risk Detected", "89", "-12%")
@@ -264,7 +258,6 @@ elif page == "📤 Upload & Analyze":
         cost_per_key = 0.003 if "3.5" in model_choice else 0.03
         estimated_cost = len(preview_data['api_keys']) * cost_per_key
         
-        # Cost warning
         cost_msg = st.info(f"💰 **Estimated Cost:** ${estimated_cost:.3f} for {len(preview_data['api_keys'])} keys")
         if estimated_cost > 10:
             cost_msg.warning(f"⚠️ High cost detected: ${estimated_cost:.2f}. Consider smaller file.")
@@ -290,7 +283,7 @@ elif page == "📊 Risk Intelligence":
         st.warning("⚠️ Please upload and analyze data first")
         st.stop()
     
-    st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_for_html=True)
+    st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_allow_html=True)
     
     if st.session_state.get('analysis_running', False):
         progress_bar = st.progress(0)
