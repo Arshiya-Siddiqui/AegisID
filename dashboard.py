@@ -137,9 +137,9 @@ colors = get_theme_colors()
 st.markdown(f"""
 <style>
     .main {{background-color: {colors['bg_primary']}; color: {colors['text']};}}
-    .stButton>button {{background-color: {colors['accent']}; color: white; font-weight: 600; border: none; border-radius: 8px; padding: 12px 24px;}}
+    .stButton>button {{background-color: {colors['accent']}; color: white; font-weight: 600; border: none; border-radius: 8px; padding: 12px 12px;}}
     .stButton>button:hover {{background-color: {colors['accent']}CC; transform: translateY(-2px);}}
-    .risk-card {{background: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 12px; padding: 24px; margin: 12px 0;}}
+    .risk-card {{background: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 12px; padding: 12px; margin: 10px 0;}}
     .status-badge {{padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-block; margin: 4px;}}
     .status-low {{background: {colors['success']}20; color: {colors['success']};}}
     .status-medium {{background: {colors['warning']}20; color: {colors['warning']};}}
@@ -152,7 +152,7 @@ st.sidebar.markdown("# AegisID Control Panel")
 st.sidebar.markdown("---")
 
 # JUDGE DIRECT WORKFLOW LINK (FEATURE)
-st.sidebar.markdown("### 👨‍⚖️ Judge Verification")
+st.sidebar.markdown("###Judge Verification")
 workflow_url = f"https://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
 
 if workflow_url:
