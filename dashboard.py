@@ -6,17 +6,20 @@ from datetime import datetime
 import os
 import pandas as pd
 
-# ============== SECRETS CONFIGURATION ==============
+# ============== SECRETS MANAGER (NO INDENTATION ERRORS) ==============
 def get_secret(key_name, fallback_env_var, default=""):
-        try:
-        return st.secrets[key_name]
+    """Safely get secrets with clear error messages"""
+    # Try Streamlit Cloud secrets first
+    try:
+        value = st.secrets[key_name]
+        return value
     except FileNotFoundError:
         # Local development: check environment variables
         return os.getenv(fallback_env_var, default)
     except KeyError:
         # Secrets file exists but key is missing
         st.error(f"🚨 SECRET KEY ERROR")
-        st.info(f"Add this to Streamlit Cloud Secrets:\n\n`{key_name} = '_466ba7df9c6fb3092640fa1fb6124074538a7541b00a020c8b7d653756f9b845364c496660fbed416d69337832357968'`")
+        st.info(f"Add this to Streamlit Cloud Secrets:\n\n`{key_name} = 'your_key_here'`")
         st.stop()
 
 # Load your API keys (these will work both locally and on Streamlit Cloud)
