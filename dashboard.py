@@ -6,7 +6,7 @@ import plotly.express as px
 import time
 from datetime import datetime
 
-# ============= SESSION STATE INITIALIZATION (FIRST THING) =============
+# ============= SESSION STATE INITIALIZATION (FIRST THING - FIXES ALL ERRORS) =============
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 if 'analysis_results' not in st.session_state:
@@ -34,38 +34,6 @@ try:
 except:
     OPUS_API_KEY = ""
     WORKFLOW_ID = ""
-
-# ============= THEME MANAGER =============
-def get_theme_colors():
-    """Return theme-specific color palette"""
-    if st.session_state.theme == 'dark':
-        return {
-            'bg_primary': '#0E1117', 'bg_secondary': '#1E293B', 'bg_card': '#1F2937',
-            'border': '#374151', 'text': '#FAFAFA', 'accent': '#10B981', 'warning': '#F59E0B',
-            'danger': '#EF4444', 'success': '#10B981', 'muted': '#9CA3AF'
-        }
-    else:
-        return {
-            'bg_primary': '#FFFFFF', 'bg_secondary': '#F9FAFB', 'bg_card': '#F3F4F6',
-            'border': '#D1D5DB', 'text': '#111827', 'accent': '#2563EB', 'warning': '#D97706',
-            'danger': '#DC2626', 'success': '#059669', 'muted': '#6B7280'
-        }
-
-colors = get_theme_colors()
-
-# ============= CSS STYLING =============
-st.markdown(f"""
-<style>
-    .main {{background-color: {colors['bg_primary']}; color: {colors['text']};}}
-    .stButton>button {{background-color: {colors['accent']}; color: white; font-weight: 600; border: none; border-radius: 8px; padding: 12px 24px;}}
-    .stButton>button:hover {{background-color: {colors['accent']}CC; transform: translateY(-2px);}}
-    .risk-card {{background: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 12px; padding: 24px; margin: 12px 0;}}
-    .status-badge {{padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-block; margin: 4px;}}
-    .status-low {{background: {colors['success']}20; color: {colors['success']};}}
-    .status-medium {{background: {colors['warning']}20; color: {colors['warning']};}}
-    .status-high {{background: {colors['danger']}20; color: {colors['danger']};}}
-</style>
-""", unsafe_allow_html=True)
 
 # ============= AI/ML ANALYSIS FUNCTION =============
 def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
@@ -151,6 +119,37 @@ def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
             "model_used": "error_fallback"
         }
 
+# ============= THEME & STYLING =============
+def get_theme_colors():
+    """Return theme-specific color palette"""
+    if st.session_state.theme == 'dark':
+        return {
+            'bg_primary': '#0E1117', 'bg_secondary': '#1E293B', 'bg_card': '#1F2937',
+            'border': '#374151', 'text': '#FAFAFA', 'accent': '#10B981', 'warning': '#F59E0B',
+            'danger': '#EF4444', 'success': '#10B981', 'muted': '#9CA3AF'
+        }
+    else:
+        return {
+            'bg_primary': '#FFFFFF', 'bg_secondary': '#F9FAFB', 'bg_card': '#F3F4F6',
+            'border': '#D1D5DB', 'text': '#111827', 'accent': '#2563EB', 'warning': '#D97706',
+            'danger': '#DC2626', 'success': '#059669', 'muted': '#6B7280'
+        }
+
+colors = get_theme_colors()
+
+st.markdown(f"""
+<style>
+    .main {{background-color: {colors['bg_primary']}; color: {colors['text']};}}
+    .stButton>button {{background-color: {colors['accent']}; color: white; font-weight: 600; border: none; border-radius: 8px; padding: 12px 24px;}}
+    .stButton>button:hover {{background-color: {colors['accent']}CC; transform: translateY(-2px);}}
+    .risk-card {{background: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 12px; padding: 24px; margin: 12px 0;}}
+    .status-badge {{padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-block; margin: 4px;}}
+    .status-low {{background: {colors['success']}20; color: {colors['success']};}}
+    .status-medium {{background: {colors['warning']}20; color: {colors['warning']};}}
+    .status-high {{background: {colors['danger']}20; color: {colors['danger']};}}
+</style>
+""", unsafe_allow_html=True)
+
 # ============= SIDEBAR =============
 st.sidebar.markdown("# AegisID Control Panel")
 st.sidebar.markdown("---")
@@ -162,20 +161,26 @@ else:
     st.sidebar.error("❌ AI_ML_API_KEY missing")
     st.sidebar.info("Add to Secrets: AI_ML_API_KEY = 'your-key-here'")
 
-# Judge Workflow Button (NEW FEATURE)
+# JUDGE DIRECT WORKFLOW LINK (NEW FEATURE)
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 👨‍⚖️ Judge Verification")
-if st.sidebar.button("🔗 View Opus Workflow Canvas", type="secondary"):
-    workflow_url = f"https://workflow.opus.ai/workflows/{WORKFLOW_ID}" if WORKFLOW_ID else "Not configured"
-    st.sidebar.info(f"**Workflow URL:**\n```{workflow_url}```\n\n*Add WORKFLOW_ID to Secrets to enable*")
-    
-    # Show instructions
-    st.sidebar.markdown("""
-    **For Judges:**
-    1. Copy WORKFLOW_ID from your Opus dashboard
-    2. Add to Streamlit Secrets as: `WORKFLOW_ID = '...'`
-    3. Click this button again to view workflow
-    """)
+
+# Build workflow URL
+workflow_url = f"https://workflow.opus.ai/workflows/{WORKFLOW_ID}" if WORKFLOW_ID else None
+
+if workflow_url:
+    # ONE-CLICK REDIRECT BUTTON
+    st.sidebar.link_button(
+        "🔗 Open Opus Workflow Canvas", 
+        workflow_url,
+        type="primary",
+        use_container_width=True,
+        help="Click to open the actual Opus workflow in a new tab for verification"
+    )
+    st.sidebar.caption(f"**Workflow ID:** `{WORKFLOW_ID}`")
+else:
+    st.sidebar.warning("WORKFLOW_ID not configured")
+    st.sidebar.info("Add to Secrets: WORKFLOW_ID = 'your-workflow-id'")
 
 st.sidebar.markdown("---")
 
@@ -188,9 +193,10 @@ if page == "🏠 Home":
     st.markdown(f"<h1 style='color:{colors['accent']}; font-size: 42px; font-weight: 800;'>AegisID Enterprise</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:{colors['muted']}; font-size: 18px;'>Zero-Trust Machine Identity Security Platform</p>", unsafe_allow_html=True)
     
-    # Demo data disclaimer
+    # Demo data disclaimer - clearly marked
     st.info("📊 **DEMO MODE** - Stats below are illustrative. Upload real data to see actual results.")
     
+    # Stats cards (illustrative data for judges to see UI)
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Scans", "1,247", "+23%")
     col2.metric("High Risk Detected", "89", "-12%")
@@ -198,12 +204,15 @@ if page == "🏠 Home":
     col4.metric("Avg Decision Time", "2.3s", "-0.4s")
     
     st.markdown("---")
-    st.markdown("### 🚀 Quick Start")
+    st.markdown("### 🚀 Quick Start Guide for Judges")
     st.markdown("""
-    1. **Upload** your API keys JSON file (format: `{"api_keys": [{"key_id": "...", "usage_count": 0}]}`)
-    2. **Configure** AI model (GPT-3.5 recommended: $0.003/key)
-    3. **Run** analysis and view AI-powered risk intelligence
-    4. **Download** audit trail for compliance (SOC 2, ISO 27001)
+    **Step 1:** Upload your API keys JSON file  
+    **Step 2:** Configure AI model (GPT-3.5 recommended for cost)  
+    **Step 3:** Click "Run AegisID Analysis"  
+    **Step 4:** View AI-powered risk intelligence with scored keys  
+    **Step 5:** Download audit trail for compliance verification  
+    
+    💡 **Cost:** $0.003 per key analyzed. A file with 10 keys costs ~$0.03
     """)
 
 # ============= UPLOAD & ANALYZE =============
@@ -246,24 +255,29 @@ elif page == "📤 Upload & Analyze":
             model_choice = st.selectbox(
                 "AI Model",
                 ["gpt-3.5-turbo-16k (Cost: $0.003/key)", "gpt-4-turbo-preview (Cost: $0.03/key)"],
-                help="GPT-3.5: Cost-effective for bulk scans | GPT-4: Higher accuracy"
+                help="GPT-3.5: Cost-effective for bulk | GPT-4: Higher accuracy for critical keys"
             )
         
         with col2:
-            batch_size = st.slider("Batch Size", 5, 50, 10, help="Number of keys to process")
+            batch_size = st.slider("Batch Size", 5, 50, 10, help="Process keys in batches")
         
         cost_per_key = 0.003 if "3.5" in model_choice else 0.03
         estimated_cost = len(preview_data['api_keys']) * cost_per_key
-        st.info(f"💰 **Estimated Cost:** ${estimated_cost:.3f} for {len(preview_data['api_keys'])} keys")
         
-        if estimated_cost > 15:
-            st.warning("⚠️ This will use significant credits. Consider smaller batch.")
+        # Cost warning
+        cost_msg = st.info(f"💰 **Estimated Cost:** ${estimated_cost:.3f} for {len(preview_data['api_keys'])} keys")
+        if estimated_cost > 10:
+            cost_msg.warning(f"⚠️ High cost detected: ${estimated_cost:.2f}. Consider smaller file.")
         
         if st.button("🚀 Run AegisID Analysis", type="primary", use_container_width=True):
             if not AI_ML_API_KEY:
                 st.error("🚨 Cannot run: AI_ML_API_KEY is missing!")
                 st.info("1. Go to Streamlit Cloud → Settings → Secrets\n2. Add: AI_ML_API_KEY = 'your-key-here'")
                 st.stop()
+            
+            if estimated_cost > 15:
+                st.warning(f"⚠️ This will cost ${estimated_cost:.2f}. Starting with first {batch_size} keys...")
+                preview_data['api_keys'] = preview_data['api_keys'][:batch_size]
             
             st.session_state['analysis_running'] = True
             st.session_state['file_data'] = preview_data
@@ -276,7 +290,7 @@ elif page == "📊 Risk Intelligence":
         st.warning("⚠️ Please upload and analyze data first")
         st.stop()
     
-    st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_for_html=True)
     
     if st.session_state.get('analysis_running', False):
         progress_bar = st.progress(0)
@@ -285,7 +299,24 @@ elif page == "📊 Risk Intelligence":
         api_keys = st.session_state['file_data'].get('api_keys', [])
         results = []
         
-        # Process each key
+        # Test API connection first
+        status_text.text("🔌 Testing API connection...")
+        try:
+            test_response = requests.get(
+                "https://api.aimlapi.com/v1/models",
+                headers={"Authorization": f"Bearer {AI_ML_API_KEY}"},
+                timeout=5
+            )
+            if test_response.status_code != 200:
+                raise Exception(f"API test failed: {test_response.status_code}")
+            status_text.text("✅ API connection successful")
+        except Exception as e:
+            st.error(f"🚨 API Connection Failed: {str(e)}")
+            st.info("Check your AI_ML_API_KEY in Streamlit Cloud Secrets")
+            st.session_state['analysis_running'] = False
+            st.stop()
+        
+        # Process keys
         for idx, key_data in enumerate(api_keys):
             progress = (idx + 1) / len(api_keys)
             progress_bar.progress(progress)
@@ -324,6 +355,13 @@ elif page == "📊 Risk Intelligence":
         col1.metric("🔴 High Risk", high_risk, "Critical Action")
         col2.metric("🟡 Medium Risk", medium_risk, "Human Review")
         col3.metric("🟢 Low Risk", low_risk, "Auto-Accepted")
+        
+        # Cost tracking
+        total_cost = len(results) * 0.003
+        st.info(f"💰 **Session Cost:** ${total_cost:.3f} | **Remaining Credits:** ${20 - total_cost:.2f}")
+        
+        if total_cost > 18:
+            st.error("🚨 Approaching $20 limit! Use test data only.")
         
         # Detailed findings
         st.markdown("---")
