@@ -163,15 +163,15 @@ else:
 
 # JUDGE DIRECT WORKFLOW LINK (NEW FEATURE)
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 👨‍⚖️ Judge Verification")
+st.sidebar.markdown("### Judge Verification")
 
 # Build workflow URL
-workflow_url = f"https://workflow.opus.ai/workflows/{WORKFLOW_ID}" if WORKFLOW_ID else None
+workflow_url = f"hhttps://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
 
 if workflow_url:
     # ONE-CLICK REDIRECT BUTTON
     st.sidebar.link_button(
-        "🔗 Open Opus Workflow Canvas", 
+        "🔗 Open Opus Workflow", 
         workflow_url,
         type="primary",
         use_container_width=True,
