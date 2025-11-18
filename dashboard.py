@@ -8,12 +8,13 @@ import time
 from datetime import datetime
 import os
 
-# ============== ENTERPRISE CONFIGURATION ==============
+# ============= ENTERPRISE CONFIGURATION =============
+# API Keys (loaded from Streamlit secrets)
 OPUS_API_KEY = st.secrets.get("OPUS_API_KEY", "")
 AI_ML_API_KEY = st.secrets.get("AI_ML_API_KEY", "")
 WORKFLOW_ID = st.secrets.get("WORKFLOW_ID", "")
 
-# ============== THEME MANAGER (Dark/Light Mode) ==============
+# ============= THEME MANAGER (Dark/Light Mode) =============
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
@@ -48,10 +49,9 @@ def get_theme_colors():
 
 colors = get_theme_colors()
 
-# ============== ENTERPRISE CSS ==============
+# ============= ENTERPRISE CSS =============
 st.markdown(f"""
 <style>
-    /* Global styling */
     .main {{background-color: {colors['bg_primary']}; color: {colors['text']};}}
     .stButton>button {{
         background-color: {colors['accent']};
@@ -67,7 +67,6 @@ st.markdown(f"""
         transform: translateY(-2px);
     }}
     
-    /* Cards */
     .risk-card {{
         background: {colors['bg_card']};
         border: 1px solid {colors['border']};
@@ -78,7 +77,6 @@ st.markdown(f"""
     }}
     .risk-card:hover {{transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.2);}}
     
-    /* Status badges */
     .status-badge {{
         padding: 6px 12px;
         border-radius: 6px;
@@ -91,7 +89,6 @@ st.markdown(f"""
     .status-medium {{background: {colors['warning']}20; color: {colors['warning']};}}
     .status-high {{background: {colors['danger']}20; color: {colors['danger']};}}
     
-    /* Animated stepper */
     .stepper-container {{display: flex; justify-content: space-between; margin: 32px 0;}}
     .step {{
         flex: 1;
@@ -140,7 +137,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ============== THEME TOGGLE ==============
+# ============= THEME TOGGLE =============
 col1, col2 = st.sidebar.columns([1, 1])
 with col1:
     st.sidebar.markdown("### 🎨 Appearance")
@@ -149,7 +146,7 @@ with col2:
         st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
         st.experimental_rerun()
 
-# ============== NAVIGATION ==============
+# ============= NAVIGATION =============
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔎 Navigation")
 page = st.sidebar.radio(
@@ -158,7 +155,7 @@ page = st.sidebar.radio(
     label_visibility="collapsed"
 )
 
-# ============== HOME PAGE ==============
+# ============= HOME PAGE =============
 if page == "🏠 Home":
     st.markdown(f"<h1 style='color:{colors['accent']}; font-size: 42px; font-weight: 800;'>AegisID Enterprise</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='color:{colors['muted']}; font-size: 18px;'>Zero-Trust Machine Identity Security Platform</p>", unsafe_allow_html=True)
@@ -174,7 +171,7 @@ if page == "🏠 Home":
     st.markdown("---")
     st.markdown(f"<h3 style='color:{colors['text']};'>Workflow Pipeline</h3>", unsafe_allow_html=True)
     
-    stepper_html = """
+    stepper_html = f"""
     <div class="stepper-container">
         <div class="step completed">
             <div class="step-circle">1</div>
@@ -197,6 +194,7 @@ if page == "🏠 Home":
     st.markdown(stepper_html, unsafe_allow_html=True)
     
     # Vulnerability summary panel
+    st.markdown("---")
     st.markdown(f"<h3 style='color:{colors['text']};'>Critical Vulnerabilities</h3>", unsafe_allow_html=True)
     vuln_col1, vuln_col2 = st.columns(2)
     
@@ -218,7 +216,7 @@ if page == "🏠 Home":
         </div>
         """, unsafe_allow_html=True)
 
-# ============== UPLOAD & ANALYZE ==============
+# ============= UPLOAD & ANALYZE =============
 elif page == "📤 Upload & Analyze":
     st.markdown(f"<h2 style='color:{colors['text']};'>Upload API Key Inventory</h2>", unsafe_allow_html=True)
     
@@ -231,14 +229,12 @@ elif page == "📤 Upload & Analyze":
     if uploaded_file:
         st.success("✅ File uploaded successfully")
         
-        # Show preview
         preview_data = json.load(uploaded_file)
-        uploaded_file.seek(0)  # Reset file pointer
+        uploaded_file.seek(0)
         
         with st.expander("📋 Preview Data"):
             st.json(preview_data)
         
-        # Configuration
         st.markdown("---")
         st.markdown("### Analysis Configuration")
         col1, col2 = st.columns(2)
@@ -253,18 +249,17 @@ elif page == "📤 Upload & Analyze":
         with col2:
             batch_size = st.slider("Batch Size", 5, 50, 10, help="Number of keys to analyze per batch")
         
-        # Cost estimator
         cost_per_key = 0.003 if "3.5" in model_choice else 0.03
         estimated_cost = batch_size * cost_per_key
         st.info(f"💰 **Estimated Cost:** ${estimated_cost:.3f} for {batch_size} keys")
         
-        # Run analysis
         if st.button("🚀 Run AegisID Analysis", type="primary", use_container_width=True):
             st.session_state['analysis_running'] = True
             st.session_state['file_data'] = preview_data
+            st.session_state['model_choice'] = model_choice
             st.experimental_rerun()
 
-# ============== RISK INTELLIGENCE ==============
+# ============= RISK INTELLIGENCE =============
 elif page == "📊 Risk Intelligence":
     if 'analysis_running' not in st.session_state:
         st.warning("⚠️ Please run analysis first")
@@ -272,7 +267,6 @@ elif page == "📊 Risk Intelligence":
     
     st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_allow_html=True)
     
-    # Progress bar during analysis
     if st.session_state.get('analysis_running', False):
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -281,16 +275,12 @@ elif page == "📊 Risk Intelligence":
         results = []
         
         for idx, key_data in enumerate(api_keys):
-            # Update progress
             progress = (idx + 1) / len(api_keys)
             progress_bar.progress(progress)
             status_text.text(f"Analyzing: {key_data['key_id'][:16]}... ({idx+1}/{len(api_keys)})")
             
-            # AI/ML API call
-            result = analyze_key_with_ai(key_data, model_choice)
+            result = analyze_key_with_ai(key_data, st.session_state.get('model_choice', 'gpt-3.5-turbo-16k'))
             results.append(result)
-            
-            # Small delay for UX
             time.sleep(0.3)
         
         status_text.text("✅ Analysis complete!")
@@ -298,41 +288,29 @@ elif page == "📊 Risk Intelligence":
         st.session_state['analysis_running'] = False
         st.experimental_rerun()
     
-    # Display results
     if 'analysis_results' in st.session_state:
         results = st.session_state['analysis_results']
         df = pd.DataFrame(results)
         
-        # Risk distribution chart
         st.markdown("---")
         st.markdown(f"<h3 style='color:{colors['text']};'>Risk Distribution</h3>", unsafe_allow_html=True)
         
-        fig = px.histogram(
-            df, x="risk_score", nbins=10,
-            title="Risk Score Distribution",
-            color_discrete_sequence=[colors['accent']]
-        )
-        fig.update_layout(
-            paper_bgcolor=colors['bg_primary'],
-            plot_bgcolor=colors['bg_card'],
-            font_color=colors['text']
-        )
+        fig = px.histogram(df, x="risk_score", nbins=10, title="Risk Score Distribution", color_discrete_sequence=[colors['accent']])
+        fig.update_layout(paper_bgcolor=colors['bg_primary'], plot_bgcolor=colors['bg_card'], font_color=colors['text'])
         st.plotly_chart(fig, use_container_width=True)
         
-        # Vulnerability summary panel
         st.markdown("---")
         st.markdown(f"<h3 style='color:{colors['text']};'>Vulnerability Summary</h3>", unsafe_allow_html=True)
         
-        high_risk_count = len(df[df['risk_score'] >= 60])
-        medium_risk_count = len(df[(df['risk_score'] >= 30) & (df['risk_score'] < 60)])
-        low_risk_count = len(df[df['risk_score'] < 30])
+        high_risk = len(df[df['risk_score'] >= 60])
+        medium_risk = len(df[(df['risk_score'] >= 30) & (df['risk_score'] < 60)])
+        low_risk = len(df[df['risk_score'] < 30])
         
         summary_col1, summary_col2, summary_col3 = st.columns(3)
-        summary_col1.metric("🔴 High Risk", high_risk_count, "Critical")
-        summary_col2.metric("🟡 Medium Risk", medium_risk_count, "Review")
-        summary_col3.metric("🟢 Low Risk", low_risk_count, "Accepted")
+        summary_col1.metric("🔴 High Risk", high_risk, "Critical")
+        summary_col2.metric("🟡 Medium Risk", medium_risk, "Review")
+        summary_col3.metric("🟢 Low Risk", low_risk, "Accepted")
         
-        # Individual risk cards
         st.markdown("---")
         st.markdown(f"<h3 style='color:{colors['text']};'>Detailed Findings</h3>", unsafe_allow_html=True)
         
@@ -344,19 +322,15 @@ elif page == "📊 Risk Intelligence":
             st.markdown(f"""
             <div class="risk-card {risk_class}">
                 <h4 style="margin-bottom:8px;">🔑 {result['identity_id'][:24]}...</h4>
-                <span class="status-badge {badge_class}">
-                    Risk: {risk_score}/100
-                </span>
-                <span class="status-badge" style="background:{colors['bg_secondary']};">
-                    {result['decision']}
-                </span>
+                <span class="status-badge {badge_class}">Risk: {risk_score}/100</span>
+                <span class="status-badge" style="background:{colors['bg_secondary']};">{result['decision']}</span>
                 <p style="color:{colors['muted']}; margin-top:12px;">
                     <strong>Critical Factors:</strong> {', '.join(result.get('critical_factors', []))}
                 </p>
             </div>
             """, unsafe_allow_html=True)
 
-# ============== AUDIT TRAIL ==============
+# ============= AUDIT TRAIL =============
 elif page == "📁 Audit Trail":
     st.markdown(f"<h2 style='color:{colors['text']};'>Audit Trail & Compliance</h2>", unsafe_allow_html=True)
     
@@ -367,7 +341,6 @@ elif page == "📁 Audit Trail":
     results = st.session_state['analysis_results']
     audit_json = json.dumps(results, indent=2)
     
-    # Download button
     st.download_button(
         label="📥 Download Audit JSON",
         data=audit_json,
@@ -376,7 +349,6 @@ elif page == "📁 Audit Trail":
         use_container_width=True
     )
     
-    # Compliance info
     st.markdown("---")
     st.markdown(f"<h3 style='color:{colors['text']};'>Compliance Summary</h3>", unsafe_allow_html=True)
     
@@ -402,12 +374,15 @@ elif page == "📁 Audit Trail":
         </div>
         """, unsafe_allow_html=True)
 
-# ============== AI/ML ANALYSIS FUNCTION ==============
+# ============= AI/ML ANALYSIS FUNCTION =============
 def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
     """Intelligent risk analysis using AI/ML API - Cost: ~$0.003 per key"""
     
     model = "gpt-3.5-turbo-16k" if "3.5" in model_choice else "gpt-4-turbo-preview"
     
-    prompt = f"""You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
+    # Build prompt safely using string formatting (AVOIDS f-string syntax errors)
+    identity_json_str = json.dumps(key_data, indent=2)
+    
+    prompt_template = """You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
 
 **IDENTITY DATA:**
