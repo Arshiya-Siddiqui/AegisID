@@ -152,12 +152,12 @@ st.sidebar.markdown("# AegisID Control Panel")
 st.sidebar.markdown("---")
 
 # JUDGE DIRECT WORKFLOW LINK (FEATURE)
-st.sidebar.markdown("###Judge Verification")
+st.sidebar.markdown("### Judge Verification")
 workflow_url = f"https://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
 
 if workflow_url:
     st.sidebar.link_button(
-        "Open Opus Workflow Canvas", 
+        "Open Opus Workflow", 
         workflow_url,
         type="primary",
         use_container_width=True,
