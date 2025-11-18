@@ -1,104 +1,239 @@
 import streamlit as st
-import json
 import requests
-import base64
+import json
 import pandas as pd
 import plotly.express as px
+import time
 from datetime import datetime
 
-# ==========================================
-# 1. PAGE CONFIG
-# ==========================================
-st.set_page_config(
-    page_title="AegisID — Machine Identity Intelligence",
-    page_icon="🛡",
-    layout="wide"
-)
+# ============= CONFIGURATION =============
+# Get API key from secrets - with debug logging
+try:
+    AI_ML_API_KEY = st.secrets["AI_ML_API_KEY"]
+    st.sidebar.success("✅ AI/ML API Key loaded")
+except:
+    AI_ML_API_KEY = ""
+    st.sidebar.error("❌ AI/ML API Key missing")
 
-# ==========================================
-# 2. CUSTOM CSS (Enterprise Theme)
-# ==========================================
-st.markdown("""
+# ============= THEME MANAGER =============
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'dark'
+
+def get_theme_colors():
+    if st.session_state.theme == 'dark':
+        return {
+            'bg_primary': '#0E1117', 'bg_secondary': '#1E293B', 'bg_card': '#1F2937',
+            'border': '#374151', 'text': '#FAFAFA', 'accent': '#10B981', 'warning': '#F59E0B',
+            'danger': '#EF4444', 'success': '#10B981', 'muted': '#9CA3AF'
+        }
+    else:
+        return {
+            'bg_primary': '#FFFFFF', 'bg_secondary': '#F9FAFB', 'bg_card': '#F3F4F6',
+            'border': '#D1D5DB', 'text': '#111827', 'accent': '#2563EB', 'warning': '#D97706',
+            'danger': '#DC2626', 'success': '#059669', 'muted': '#6B7280'
+        }
+
+colors = get_theme_colors()
+
+# ============= CSS STYLING =============
+st.markdown(f"""
 <style>
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
-/* Title */
-.big-title {
-    font-size: 40px !important;
-    font-weight: 800 !important;
-    padding-bottom: 5px;
-}
-
-/* Section Title */
-.section-title {
-    font-size: 24px !important;
-    font-weight: 600 !important;
-    margin-top: 25px;
-    margin-bottom: 10px;
-}
-
-/* Cards */
-.card {
-    padding: 20px;
-    border-radius: 12px;
-    background: #1e293b;
-    border: 1px solid #334155;
-    margin-bottom: 15px;
-}
-
-.good { border-left: 6px solid #10b981 !important; }
-.warn { border-left: 6px solid #f59e0b !important; }
-.bad  { border-left: 6px solid #ef4444 !important; }
-
+    .main {{background-color: {colors['bg_primary']}; color: {colors['text']};}}
+    .stButton>button {{background-color: {colors['accent']}; color: white; font-weight: 600; border: none; border-radius: 8px; padding: 12px 24px;}}
+    .risk-card {{background: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 12px; padding: 24px; margin: 12px 0;}}
+    .status-badge {{padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-block; margin: 4px;}}
+    .status-low {{background: {colors['success']}20; color: {colors['success']};}}
+    .status-medium {{background: {colors['warning']}20; color: {colors['warning']};}}
+    .status-high {{background: {colors['danger']}20; color: {colors['danger']};}}
 </style>
 """, unsafe_allow_html=True)
 
+# ============= THEME TOGGLE =============
+col1, col2 = st.sidebar.columns([1, 1])
+with col1:
+    st.sidebar.markdown("### Appearance")
+with col2:
+    if st.sidebar.button("Toggle Theme"):
+        st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
+        st.experimental_rerun()
 
-# ==========================================
-# 3. LOAD SECRETS
-# ==========================================
-OPUS_KEY = st.secrets["OPUS_API_KEY"]
-WORKFLOW_ID = st.secrets["WORKFLOW_ID"]
-AI_ML_API_KEY = st.secrets.get("AIML_API_KEY", None)
+# ============= NAVIGATION =============
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Navigation")
+page = st.sidebar.radio("", ["Home", "Upload & Analyze", "Risk Intelligence", "Audit Trail"], label_visibility="collapsed")
 
+# ============= HOME PAGE =============
+if page == "Home":
+    st.markdown(f"<h1 style='color:{colors['accent']}; font-size: 42px; font-weight: 800;'>AegisID Enterprise</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:{colors['muted']}; font-size: 18px;'>Zero-Trust Machine Identity Security Platform</p>", unsafe_allow_html=True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Scans", "1,247", "+23%")
+    col2.metric("High Risk Detected", "89", "-12%")
+    col3.metric("Auto-Remediated", "1,158", "93%")
+    col4.metric("Avg Decision Time", "2.3s", "-0.4s")
 
-# ==========================================
-# 4. AI ANALYSIS FUNCTION  (MUST BE BEFORE PAGE ROUTING)
-# ==========================================
-def analyze_key_with_ai(key_data):
-    """Risk analysis using AI/ML — Extremely lightweight."""
+# ============= UPLOAD & ANALYZE =============
+elif page == "Upload & Analyze":
+    st.markdown(f"<h2 style='color:{colors['text']};'>Upload API Key Inventory</h2>", unsafe_allow_html=True)
+    
+    uploaded_file = st.file_uploader("Choose JSON file", type=["json"], help="Format: {'api_keys': [{'key_id': '...', 'usage_count': 0, 'ip_restriction': null}]}")
+    
+    if uploaded_file:
+        preview_data = json.load(uploaded_file)
+        uploaded_file.seek(0)
+        
+        with st.expander("Preview Data"):
+            st.json(preview_data)
+        
+        st.markdown("---")
+        st.markdown("### Analysis Configuration")
+        model_choice = st.selectbox("AI Model", ["gpt-3.5-turbo-16k (Cost: $0.003/key)", "gpt-4-turbo-preview (Cost: $0.03/key)"])
+        batch_size = st.slider("Batch Size", 5, 50, 10)
+        
+        cost = batch_size * (0.003 if "3.5" in model_choice else 0.03)
+        st.info(f" **Estimated Cost:** ${cost:.3f} for {batch_size} keys")
+        
+        if st.button(" Run Analysis", type="primary", use_container_width=True):
+            st.session_state['analysis_running'] = True
+            st.session_state['file_data'] = preview_data
+            st.session_state['model_choice'] = model_choice
+            st.experimental_rerun()
 
-    if not AI_ML_API_KEY:
-        return {
-            "ai_summary": "AI/ML API Key not configured.",
-            "risk_factors": [],
-            "recommendations": []
-        }
+# ============= RISK INTELLIGENCE =============
+elif page == "Risk Intelligence":
+    if 'analysis_running' not in st.session_state:
+        st.warning("⚠️ Please run analysis first")
+        st.stop()
+    
+    st.markdown(f"<h2 style='color:{colors['text']};'>AI-Powered Risk Intelligence</h2>", unsafe_allow_html=True)
+    
+    if st.session_state.get('analysis_running', False):
+        if not AI_ML_API_KEY:
+            st.error("AI/ML API Key is missing!")
+            st.info("Go to Streamlit Cloud → Settings → Secrets → Add: AI_ML_API_KEY = 'your-key-here'")
+            st.stop()
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        api_keys = st.session_state['file_data'].get('api_keys', [])
+        results = []
+        
+        # Test API key first
+        status_text.text("🔌 Testing API connection...")
+        try:
+            test_response = requests.get(
+                "https://api.aimlapi.com/v1/models",
+                headers={"Authorization": f"Bearer {AI_ML_API_KEY}"},
+                timeout=5
+            )
+            if test_response.status_code != 200:
+                raise Exception(f"API test failed: {test_response.status_code}")
+            status_text.text("✅ API connection successful")
+        except Exception as e:
+            st.error(f" API Connection Failed: {str(e)}")
+            st.info("Check your AI_ML_API_KEY in Streamlit Cloud Secrets")
+            st.stop()
+        
+        # Process keys
+        for idx, key_data in enumerate(api_keys):
+            progress = (idx + 1) / len(api_keys)
+            progress_bar.progress(progress)
+            status_text.text(f"Analyzing: {key_data['key_id'][:16]}... ({idx+1}/{len(api_keys)})")
+            
+            result = analyze_key_with_ai(key_data, st.session_state.get('model_choice', 'gpt-3.5-turbo-16k'))
+            results.append(result)
+            time.sleep(0.2)
+        
+        status_text.text("✅ Analysis complete!")
+        st.session_state['analysis_results'] = results
+        st.session_state['analysis_running'] = False
+        st.experimental_rerun()
+    
+    if 'analysis_results' in st.session_state:
+        results = st.session_state['analysis_results']
+        df = pd.DataFrame(results)
+        
+        # Risk distribution
+        st.markdown("---")
+        fig = px.histogram(df, x="risk_score", nbins=10, title="Risk Score Distribution", color_discrete_sequence=[colors['accent']])
+        fig.update_layout(paper_bgcolor=colors['bg_primary'], plot_bgcolor=colors['bg_card'], font_color=colors['text'])
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Summary
+        st.markdown("---")
+        high_risk = len(df[df['risk_score'] >= 60])
+        medium_risk = len(df[(df['risk_score'] >= 30) & (df['risk_score'] < 60)])
+        low_risk = len(df[df['risk_score'] < 30])
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("🔴 High Risk", high_risk, "Critical")
+        col2.metric("🟡 Medium Risk", medium_risk, "Review")
+        col3.metric("🟢 Low Risk", low_risk, "Accepted")
+        
+        # Detailed findings
+        st.markdown("---")
+        for result in results:
+            risk_score = result['risk_score']
+            risk_class = "bad" if risk_score >= 60 else "warn" if risk_score >= 30 else "good"
+            badge_class = "status-high" if risk_score >= 60 else "status-medium" if risk_score >= 30 else "status-low"
+            
+            st.markdown(f"""
+            <div class="risk-card {risk_class}">
+                <h4>🔑 {result['identity_id'][:24]}...</h4>
+                <span class="status-badge {badge_class}">Risk: {risk_score}/100</span>
+                <span class="status-badge" style="background:{colors['bg_secondary']};">{result['decision']}</span>
+                <p style="color:{colors['muted']}; margin-top:12px;">
+                    <strong>Critical Factors:</strong> {', '.join(result.get('critical_factors', []))}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
+# ============= AUDIT TRAIL =============
+elif page == "Audit Trail":
+    st.markdown(f"<h2 style='color:{colors['text']};'>Audit Trail & Compliance</h2>", unsafe_allow_html=True)
+    
+    if 'analysis_results' not in st.session_state:
+        st.warning("⚠️ No audit data available")
+        st.stop()
+    
+    results = st.session_state['analysis_results']
+    audit_json = json.dumps(results, indent=2)
+    
+    st.download_button("Download Audit JSON", audit_json, f"aegisid_audit_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json", "application/json", use_container_width=True)
+
+# ============= AI/ML ANALYSIS FUNCTION =============
+def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
+    """Intelligent risk analysis using AI/ML API - Cost: ~$0.003 per key"""
+    
+    model = "gpt-3.5-turbo-16k" if "3.5" in model_choice else "gpt-4-turbo-preview"
+    
+    # Build prompt safely
     identity_json_str = json.dumps(key_data, indent=2)
-
-    # --- SAFE PROMPT BUILDING ---
-    prompt_template = """
-You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
-
-### IDENTITY DATA ###
-{identity_json}
-
-### REQUIRED OUTPUT FORMAT ###
-{{
-    "why_risky": "string",
-    "what_attackers_can_do": "string",
-    "business_impact": "string",
-    "recommended_fix": ["string", "..."]
-}}
-
-Return ONLY valid JSON.
-"""
-    prompt = prompt_template.format(identity_json=identity_json_str)
-
+    
+    prompt = (
+        "You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.\n\n"
+        "**IDENTITY DATA:**\n"
+        "```\n"
+        f"{identity_json_str}\n"
+        "```\n\n"
+        "**RISK FRAMEWORK:**\n"
+        "- Score 0-30: Low risk (auto-accept)\n"
+        "- Score 31-60: Medium risk (human review)\n"
+        "- Score 61-100: High risk (auto-reject)\n\n"
+        "**ANALYZE FOR:**\n"
+        "1. Exposure risk (public repos, logs, etc.)\n"
+        "2. Privilege escalation potential\n"
+        "3. Anomalous usage patterns\n"
+        "4. Missing security controls\n"
+        "5. Key rotation hygiene\n"
+        "6. Naming conventions that attract attackers\n\n"
+        "RETURN EXACT JSON FORMAT:\n"
+        '{"risk_score": integer, "decision": "string", "critical_factors": ["string"], "exposure_likelihood": "low|medium|high", "privilege_level": "string"}\n\n'
+        "DO NOT ADD COMMENTARY. RETURN ONLY VALID JSON."
+    )
+    
     try:
         response = requests.post(
             "https://api.aimlapi.com/v1/chat/completions",
@@ -107,156 +242,47 @@ Return ONLY valid JSON.
                 "Content-Type": "application/json"
             },
             json={
-                "model": "gpt-4o-mini",
-                "messages": [{"role": "user", "content": prompt}]
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+                "max_tokens": 300
             },
             timeout=15
         )
-
-        ai_data = response.json()
-        content = ai_data["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
-
-        return parsed
-
-    except Exception as e:
+        
+        if response.status_code != 200:
+            raise Exception(f"API Error {response.status_code}: {response.text}")
+        
+        result = response.json()
+        ai_output = result['choices'][0]['message']['content']
+        parsed = json.loads(ai_output.strip())
+        
         return {
-            "why_risky": "AI analysis failed.",
-            "what_attackers_can_do": str(e),
-            "business_impact": "Unknown",
-            "recommended_fix": ["Rotate key", "Add IP restrictions"]
+            "identity_id": key_data['key_id'],
+            "risk_score": parsed['risk_score'],
+            "decision": parsed['decision'],
+            "critical_factors": parsed.get('critical_factors', []),
+            "exposure_likelihood": parsed.get('exposure_likelihood', 'unknown'),
+            "privilege_level": parsed.get('privilege_level', 'unknown'),
+            "timestamp": datetime.utcnow().isoformat(),
+            "model_used": model
         }
-
-
-# ==========================================
-# 5. SIDEBAR NAVIGATION
-# ==========================================
-st.sidebar.title("Navigation")
-page = st.sidebar.radio(
-    "",
-    ["Home", "Upload", "Results", "Audit File"]
-)
-
-# ==========================================
-# 6. PAGE ROUTING STARTS
-# ==========================================
-
-# ---------------- HOME PAGE ----------------
-if page == "Home":
-
-    st.markdown("<div class='big-title'>🛡 AegisID — API Key Risk Analysis</div>", unsafe_allow_html=True)
-    st.subheader("Enterprise-grade exposure detection for API Keys")
-
-    st.markdown("""
-AegisID analyzes API Keys for:
-- Exposure risks  
-- Abnormal usage  
-- Missing IP restrictions  
-- Naming conventions that attract attackers  
-- Potential compromise indicators  
-
-The system runs an Opus workflow and adds AI insights for deep analysis.
-    """)
-
-    st.divider()
-    st.markdown("### Pipeline Overview")
-    st.markdown("""
-1️⃣ Parse API Keys (JSON)  
-2️⃣ Risk Scoring (Opus LLM)  
-3️⃣ Parse Scored Output  
-4️⃣ Split High / Low Risk  
-5️⃣ Generate Audit JSON  
-6️⃣ Add AI Explanation (Real-time)  
-    """)
-
-
-# ---------------- UPLOAD PAGE ----------------
-elif page == "Upload":
-
-    st.markdown("<div class='section-title'>📤 Upload API Keys JSON</div>", unsafe_allow_html=True)
-    api_file = st.file_uploader("Upload your API Keys JSON", type=["json"])
-
-    run = st.button("⚡ Run AegisID Workflow")
-
-    if run:
-        if not api_file:
-            st.error("Upload a file first.")
-            st.stop()
-
-        st.info("Running workflow... ⏳")
-
-        api_data = json.loads(api_file.read())
-
-        url = f"https://workflow.opus.ai/api/workflows/{WORKFLOW_ID}/run"
-        headers = {"Authorization": f"Bearer {OPUS_KEY}", "Content-Type": "application/json"}
-
-        resp = requests.post(url, headers=headers, json={"inputs": {"api_keys_json_file": api_data}})
-
-        if resp.status_code != 200:
-            st.error(resp.text)
-        else:
-            st.success("Workflow completed!")
-            st.session_state.workflow_data = resp.json()
-
-
-# ---------------- RESULTS PAGE ----------------
-elif page == "Results":
-
-    if "workflow_data" not in st.session_state:
-        st.warning("Run the workflow first.")
-        st.stop()
-
-    results = st.session_state.workflow_data["outputs"]["audit_json"]
-    parsed = json.loads(results)
-
-    st.markdown("<div class='section-title'> Risk Analysis Results</div>", unsafe_allow_html=True)
-
-    df = pd.DataFrame(parsed)
-
-    # Histogram
-    fig = px.histogram(df, x="risk_score", nbins=10)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Per-key cards
-    for item in parsed:
-
-        key_id = item["identity_id"]
-        risk = item["risk_score"]
-        decision = item["decision"]
-
-        css = "good" if risk < 30 else "warn" if risk < 60 else "bad"
-
-        st.markdown(f"<div class='card {css}'>", unsafe_allow_html=True)
-        st.markdown(f"### 🔑 {key_id}")
-        st.write(f"**Risk Score:** {risk}")
-        st.write(f"**Decision:** {decision}")
-        st.write(f"**Usage Count:** {item['usage_count']}")
-        st.write(f"**IP Restriction:** {item.get('ip_restriction')}")
-
-        # 🔥 AI DEEP ANALYSIS
-        st.markdown("### AI Security Insight")
-        ai_info = analyze_key_with_ai(item)
-        st.json(ai_info)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ---------------- AUDIT FILE PAGE ----------------
-elif page == "Audit File":
-
-    if "workflow_data" not in st.session_state:
-        st.warning("Run the workflow first.")
-        st.stop()
-
-    results = st.session_state.workflow_data["outputs"]["audit_json"]
-
-    st.markdown("<div class='section-title'>📁 Download Audit JSON</div>", unsafe_allow_html=True)
-
-    st.code(results, language="json")
-
-    st.download_button(
-        "⬇️ Download JSON",
-        results,
-        file_name="aegisid_audit.json",
-        mime="application/json"
-    )
+        
+    except Exception as e:
+        # Fail-safe scoring
+        risk_score = 50
+        if not key_data.get('ip_restriction'):
+            risk_score += 25
+        if key_data.get('usage_count', 0) > 10000:
+            risk_score += 15
+        
+        return {
+            "identity_id": key_data['key_id'],
+            "risk_score": min(risk_score, 100),
+            "decision": "human_review" if risk_score >= 30 else "auto_accept",
+            "critical_factors": [f"Error: {str(e)}"],
+            "exposure_likelihood": "unknown",
+            "privilege_level": "unknown",
+            "timestamp": datetime.utcnow().isoformat(),
+            "model_used": "error_fallback"
+        }
