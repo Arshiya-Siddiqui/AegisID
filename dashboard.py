@@ -383,6 +383,121 @@ def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
     # Build prompt safely using string formatting (AVOIDS f-string syntax errors)
     identity_json_str = json.dumps(key_data, indent=2)
     
-    prompt_template = "You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON."
+   prompt_template = """You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
 
-**IDENTITY DATA:**
+
+**RISK FRAMEWORK:**
+- Score 0-30: Low risk (auto-accept)
+- Score 31-60: Medium risk (human review)
+- Score 61-100: High risk (auto-reject)
+
+**ANALYZE FOR:**
+1. Exposure risk (public repos, logs, etc.)
+2. Privilege escalation potential
+3. Anomalous usage patterns
+4. Missing security controls
+5. Key rotation hygiene
+6. Naming conventions that attract attackers
+
+**RETURN EXACT JSON FORMAT:**
+{{"risk_score": integer, "decision": "string", "critical_factors": ["string"], "exposure_likelihood": "low|medium|high", "privilege_level": "string"}}
+
+**DO NOT ADD COMMENTARY. RETURN ONLY VALID JSON.**"""
+    
+    prompt = prompt_template.format(identity_data=identity_json_str)
+    
+    try:
+        response = requests.post(
+            "https://api.aimlapi.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {AI_ML_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+                "max_tokens": 300
+            },
+            timeout=15
+        )
+        
+        result = response.json()
+        ai_output = result['choices'][0]['message']['content']
+        parsed = json.loads(ai_output.strip())
+        
+        return {
+            "identity_id": key_data['key_id'],
+            "risk_score": parsed['risk_score'],
+            "decision": parsed['decision'],
+            "critical_factors": parsed.get('critical_factors', []),
+            "exposure_likelihood": parsed.get('exposure_likelihood', 'unknown'),
+            "privilege_level": parsed.get('privilege_level', 'unknown'),
+            "timestamp": datetime.utcnow().isoformat(),
+            "model_used": model
+        }
+        
+    except Exception as e:
+        # Fail-safe scoring
+        risk_score = 50
+        if not key_data.get('ip_restriction'):
+            risk_score += 25
+        if key_data.get('usage_count', 0) > 10000:
+            risk_score += 15
+        
+        return {
+            "identity_id": key_data['key_id'],
+            "risk_score": min(risk_score, 100),
+            "decision": "human_review" if risk_score >= 30 else "auto_accept",
+            "critical_factors": [f"Analysis failed: {str(e)}"],
+            "exposure_likelihood": "unknown",
+            "privilege_level": "unknown",
+            "timestamp": datetime.utcnow().isoformat(),
+            "model_used": "error_fallback"
+        }
+
+# ============= CONFIGURATION PAGE =============
+elif page == "⚙️ Configuration":
+    st.markdown(f"<h2 style='color:{colors['text']};'>Platform Configuration</h2>", unsafe_allow_html=True)
+    
+    st.markdown("### 🔐 API Keys Status")
+    
+    key_status = {
+        "OPUS_API_KEY": "✅ Active" if OPUS_API_KEY else "❌ Missing",
+        "AI_ML_API_KEY": "✅ Active" if AI_ML_API_KEY else "❌ Missing",
+        "WORKFLOW_ID": "✅ Configured" if WORKFLOW_ID else "❌ Missing"
+    }
+    
+    for key, status in key_status.items():
+        badge_type = "status-low" if "✅" in status else "status-high"
+        st.markdown(f"""
+        <div class="risk-card">
+            <h4>{key}</h4>
+            <span class="status-badge {badge_type}">{status}</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Cost tracking dashboard
+    st.markdown("---")
+    st.markdown("### 💰 Cost Tracking Dashboard")
+    
+    if 'analysis_results' in st.session_state:
+        total_scans = len(st.session_state['analysis_results'])
+        total_cost = total_scans * 0.003
+        remaining = 20 - total_cost
+        
+        cost_col1, cost_col2, cost_col3 = st.columns(3)
+        cost_col1.metric("Total Scans", total_scans)
+        cost_col2.metric("Session Spend", f"${total_cost:.3f}")
+        cost_col3.metric("Credits Remaining", f"${remaining:.2f}")
+        
+        # Progress bar to $20
+        st.progress(min(total_cost / 20, 1.0))
+        
+        if total_cost > 15:
+            st.warning("⚠️ Approaching $20 credit limit. Switch to smaller batches.")
+        elif total_cost > 18:
+            st.error("🚨 Stop! You are near the $20 limit. Use test keys only.")
+    else:
+        st.info("No analysis runs yet. Each key costs ~$0.003 to analyze.")
+        st.metric("Estimated Max Scans", f"{int(20/0.003):,}", "with $20 credits")
