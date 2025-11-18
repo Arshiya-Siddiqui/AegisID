@@ -377,35 +377,47 @@ elif page == "📁 Audit Trail":
 # ============= AI/ML ANALYSIS FUNCTION =============
 def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
     """Intelligent risk analysis using AI/ML API - Cost: ~$0.003 per key"""
-    
+
     model = "gpt-3.5-turbo-16k" if "3.5" in model_choice else "gpt-4-turbo-preview"
-    
-    # Build prompt safely using string formatting (AVOIDS f-string syntax errors)
+
+    # Convert key data to JSON string
     identity_json_str = json.dumps(key_data, indent=2)
-    
-   prompt_template = """You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
 
+    # ===================== FIXED PROMPT (Correct Indentation) =====================
+    prompt_template = """
+You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
 
-**RISK FRAMEWORK:**
-- Score 0-30: Low risk (auto-accept)
-- Score 31-60: Medium risk (human review)
-- Score 61-100: High risk (auto-reject)
+### IDENTITY DATA ###
+{identity_json}
 
-**ANALYZE FOR:**
-1. Exposure risk (public repos, logs, etc.)
-2. Privilege escalation potential
-3. Anomalous usage patterns
-4. Missing security controls
-5. Key rotation hygiene
-6. Naming conventions that attract attackers
+### RISK FRAMEWORK ###
+- 0–30 = low risk (auto-accept)
+- 31–60 = medium risk (human review)
+- 61–100 = high risk (auto-reject)
 
-**RETURN EXACT JSON FORMAT:**
-{{"risk_score": integer, "decision": "string", "critical_factors": ["string"], "exposure_likelihood": "low|medium|high", "privilege_level": "string"}}
+### CHECK FOR ###
+1. Exposure risk (public repos, logs, screenshots)
+2. Over-privilege or unsafe permissions
+3. High usage anomalies
+4. Missing IP restrictions
+5. Naming patterns like "prod", "live" that attract attackers
+6. Rotation hygiene and lifespan
 
-**DO NOT ADD COMMENTARY. RETURN ONLY VALID JSON.**"""
-    
-    prompt = prompt_template.format(identity_data=identity_json_str)
-    
+### OUTPUT STRICTLY AS JSON ###
+{
+  "risk_score": number,
+  "decision": "auto_accept | human_review | auto_reject",
+  "critical_factors": ["string", "..."],
+  "exposure_likelihood": "low | medium | high",
+  "privilege_level": "low | medium | high"
+}
+
+Return ONLY valid JSON.
+"""
+
+    prompt = prompt_template.format(identity_json=identity_json_str)
+    # ===========================================================================
+
     try:
         response = requests.post(
             "https://api.aimlapi.com/v1/chat/completions",
@@ -421,11 +433,10 @@ def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
             },
             timeout=15
         )
-        
-        result = response.json()
-        ai_output = result['choices'][0]['message']['content']
+
+        ai_output = response.json()['choices'][0]['message']['content']
         parsed = json.loads(ai_output.strip())
-        
+
         return {
             "identity_id": key_data['key_id'],
             "risk_score": parsed['risk_score'],
@@ -436,20 +447,21 @@ def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
             "timestamp": datetime.utcnow().isoformat(),
             "model_used": model
         }
-        
+
     except Exception as e:
-        # Fail-safe scoring
-        risk_score = 50
-        if not key_data.get('ip_restriction'):
-            risk_score += 25
-        if key_data.get('usage_count', 0) > 10000:
-            risk_score += 15
-        
+        # Fail-safe scoring in case of LLM failure
+        fallback_score = 30
+
+        if not key_data.get("ip_restriction"):
+            fallback_score += 25
+        if key_data.get("usage_count", 0) > 10000:
+            fallback_score += 15
+
         return {
             "identity_id": key_data['key_id'],
-            "risk_score": min(risk_score, 100),
-            "decision": "human_review" if risk_score >= 30 else "auto_accept",
-            "critical_factors": [f"Analysis failed: {str(e)}"],
+            "risk_score": min(fallback_score, 100),
+            "decision": "human_review" if fallback_score >= 30 else "auto_accept",
+            "critical_factors": [f"Fallback: {str(e)}"],
             "exposure_likelihood": "unknown",
             "privilege_level": "unknown",
             "timestamp": datetime.utcnow().isoformat(),
