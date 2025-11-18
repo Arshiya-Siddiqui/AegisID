@@ -166,7 +166,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### Judge Verification")
 
 # Build workflow URL
-workflow_url = f"hhttps://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
+workflow_url = f"https://workflow.opus.com/workflow/{WORKFLOW_ID}" if WORKFLOW_ID else None
 
 if workflow_url:
     # ONE-CLICK REDIRECT BUTTON
