@@ -383,6 +383,5 @@ def analyze_key_with_ai(key_data, model_choice="gpt-3.5-turbo-16k"):
     # Build prompt safely using string formatting (AVOIDS f-string syntax errors)
     identity_json_str = json.dumps(key_data, indent=2)
     
-    prompt_template = """You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON.
-
+    prompt_template = "You are a Senior Security Auditor. Analyze this machine identity and return ONLY JSON."
 **IDENTITY DATA:**
